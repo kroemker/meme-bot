@@ -8,8 +8,9 @@ own.
 
 Once a day (via a GitHub Actions cron job):
 
-1. Connects to Discord and reads recent messages from the configured source
-   channel(s) (your meme channel + any others you want it to learn from).
+1. Connects to Discord and reads the last 100 messages (per channel) from the
+   configured source channel(s) (your meme channel + any others you want it
+   to learn from).
 2. Sends that context to an LLM (Anthropic or OpenAI — your choice) to get a
    short summary of the group's sense of humour.
 3. Picks a random topic.
@@ -60,8 +61,7 @@ Create a free account at [imgflip.com](https://imgflip.com) — `IMGFLIP_USERNAM
 | `CLAUDE_MODEL` | Optional, default `claude-sonnet-5` |
 | `OPENAI_API_KEY` | Required if `LLM_PROVIDER=openai` |
 | `OPENAI_MODEL` | Optional, default `gpt-4o-mini` |
-| `HUMOUR_LOOKBACK_DAYS` | Optional, default `7` — how many days of history to scan |
-| `MESSAGES_PER_CHANNEL_LIMIT` | Optional, default `200` — max messages fetched per source channel |
+| `MESSAGES_PER_CHANNEL_LIMIT` | Optional, default `100` — max messages fetched per source channel |
 
 Only the key pair for your chosen `LLM_PROVIDER` is required — you don't need
 both, but you can set both and flip `LLM_PROVIDER` any time to switch.
@@ -79,6 +79,13 @@ In production, the `.github/workflows/daily-meme.yml` workflow runs this
 automatically once a day (`0 18 * * *` UTC by default — edit the cron
 expression to change the time). You can also trigger it manually from the
 Actions tab via `workflow_dispatch`.
+
+### Seeing what the LLM generated
+
+Each run writes a summary — the humour style it inferred, the chosen topic,
+and the resulting image URL — to the **Summary** panel of that Actions run
+(Actions tab > pick the run). It's also in the raw job log if you want more
+detail (e.g. `INFO:meme_bot:Humour style summary: ...`).
 
 ## Project layout
 

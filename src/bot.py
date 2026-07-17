@@ -1,5 +1,5 @@
-import datetime
 import logging
+import os
 
 import discord
 
@@ -37,16 +37,13 @@ class MemeBot(discord.Client):
         post_channel = await self._get_channel(config.MEME_POST_CHANNEL_ID)
         await post_channel.send(content=f"Today's meme topic: **{chosen_topic}**\n{image_url}")
 
+        _write_step_summary(humour_style, chosen_topic, image_url)
+
     async def _collect_recent_messages(self) -> list[str]:
-        cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
-            days=config.HUMOUR_LOOKBACK_DAYS
-        )
         collected = []
         for channel_id in config.SOURCE_CHANNEL_IDS:
             channel = await self._get_channel(channel_id)
-            async for message in channel.history(
-                limit=config.MESSAGES_PER_CHANNEL_LIMIT, after=cutoff
-            ):
+            async for message in channel.history(limit=config.MESSAGES_PER_CHANNEL_LIMIT):
                 if message.author.bot:
                     continue
                 text = message.content.strip()
@@ -60,6 +57,19 @@ class MemeBot(discord.Client):
 
     async def _get_channel(self, channel_id: int):
         return self.get_channel(channel_id) or await self.fetch_channel(channel_id)
+
+
+def _write_step_summary(humour_style: str, chosen_topic: str, image_url: str):
+    summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not summary_path:
+        return
+    with open(summary_path, "a") as f:
+        f.write(
+            f"## Daily meme\n\n"
+            f"**Topic:** {chosen_topic}\n\n"
+            f"**Humour style summary:**\n{humour_style}\n\n"
+            f"**Image:** {image_url}\n"
+        )
 
 
 def run():
