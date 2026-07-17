@@ -9,12 +9,17 @@ logger = logging.getLogger("meme_bot")
 
 
 class MemeBot(discord.Client):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.failed = False
+
     async def on_ready(self):
         logger.info("Logged in as %s", self.user)
         try:
             await self.post_daily_meme()
         except Exception:
             logger.exception("Failed to post daily meme")
+            self.failed = True
         finally:
             await self.close()
 
@@ -62,3 +67,5 @@ def run():
     intents.message_content = True
     client = MemeBot(intents=intents)
     client.run(config.DISCORD_BOT_TOKEN)
+    if client.failed:
+        raise SystemExit(1)
