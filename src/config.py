@@ -20,8 +20,7 @@ SOURCE_CHANNEL_IDS = [
 IMGFLIP_USERNAME = os.environ["IMGFLIP_USERNAME"]
 IMGFLIP_PASSWORD = os.environ["IMGFLIP_PASSWORD"]
 
-HUMOUR_LOOKBACK_DAYS = int(_env("HUMOUR_LOOKBACK_DAYS", "7"))
-MESSAGES_PER_CHANNEL_LIMIT = int(_env("MESSAGES_PER_CHANNEL_LIMIT", "200"))
+MESSAGES_PER_CHANNEL_LIMIT = int(_env("MESSAGES_PER_CHANNEL_LIMIT", "50"))
 
 # LLM provider selection: "anthropic" (default) or "openai".
 LLM_PROVIDER = _env("LLM_PROVIDER", "anthropic").lower()
