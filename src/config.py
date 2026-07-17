@@ -4,6 +4,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
+def _env(key: str, default: str) -> str:
+    # GitHub Actions sets referenced secrets as an empty-string env var even
+    # when the secret doesn't exist, so a plain os.environ.get(key, default)
+    # would never fall back to the default in that case.
+    return os.environ.get(key) or default
+
+
 DISCORD_BOT_TOKEN = os.environ["DISCORD_BOT_TOKEN"]
 MEME_POST_CHANNEL_ID = int(os.environ["MEME_POST_CHANNEL_ID"])
 SOURCE_CHANNEL_IDS = [
@@ -12,21 +20,21 @@ SOURCE_CHANNEL_IDS = [
 IMGFLIP_USERNAME = os.environ["IMGFLIP_USERNAME"]
 IMGFLIP_PASSWORD = os.environ["IMGFLIP_PASSWORD"]
 
-HUMOUR_LOOKBACK_DAYS = int(os.environ.get("HUMOUR_LOOKBACK_DAYS", "7"))
-MESSAGES_PER_CHANNEL_LIMIT = int(os.environ.get("MESSAGES_PER_CHANNEL_LIMIT", "200"))
+HUMOUR_LOOKBACK_DAYS = int(_env("HUMOUR_LOOKBACK_DAYS", "7"))
+MESSAGES_PER_CHANNEL_LIMIT = int(_env("MESSAGES_PER_CHANNEL_LIMIT", "200"))
 
 # LLM provider selection: "anthropic" (default) or "openai".
-LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "anthropic").lower()
+LLM_PROVIDER = _env("LLM_PROVIDER", "anthropic").lower()
 if LLM_PROVIDER not in ("anthropic", "openai"):
     raise ValueError(
         f"Unsupported LLM_PROVIDER: {LLM_PROVIDER!r} (expected 'anthropic' or 'openai')"
     )
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
-CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "claude-sonnet-5")
+CLAUDE_MODEL = _env("CLAUDE_MODEL", "claude-sonnet-5")
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
-OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+OPENAI_MODEL = _env("OPENAI_MODEL", "gpt-4o-mini")
 
 if LLM_PROVIDER == "anthropic" and not ANTHROPIC_API_KEY:
     raise RuntimeError("LLM_PROVIDER=anthropic requires ANTHROPIC_API_KEY to be set")
