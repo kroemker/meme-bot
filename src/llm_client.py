@@ -35,7 +35,7 @@ def _ask_openai(system: str, prompt: str, max_tokens: int) -> str:
 
     response = _openai_client.chat.completions.create(
         model=config.OPENAI_MODEL,
-        max_tokens=max_tokens,
+        max_completion_tokens=max_tokens,
         messages=[
             {"role": "system", "content": system},
             {"role": "user", "content": prompt},
