@@ -8,7 +8,7 @@ own.
 
 Once a day (via a GitHub Actions cron job):
 
-1. Connects to Discord and reads the last 50 messages (per channel) from the
+1. Connects to Discord and reads the last 100 messages (per channel) from the
    configured source channel(s) (your meme channel + any others you want it
    to learn from).
 2. Sends that context to an LLM (Anthropic or OpenAI — your choice) to get a
@@ -61,7 +61,7 @@ Create a free account at [imgflip.com](https://imgflip.com) — `IMGFLIP_USERNAM
 | `CLAUDE_MODEL` | Optional, default `claude-sonnet-5` |
 | `OPENAI_API_KEY` | Required if `LLM_PROVIDER=openai` |
 | `OPENAI_MODEL` | Optional, default `gpt-4o-mini` |
-| `MESSAGES_PER_CHANNEL_LIMIT` | Optional, default `50` — max messages fetched per source channel |
+| `MESSAGES_PER_CHANNEL_LIMIT` | Optional, default `100` — max messages fetched per source channel |
 
 Only the key pair for your chosen `LLM_PROVIDER` is required — you don't need
 both, but you can set both and flip `LLM_PROVIDER` any time to switch.
