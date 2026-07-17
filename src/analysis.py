@@ -52,7 +52,7 @@ def analyze(channels: list[dict]) -> tuple[str, list[str]]:
         "words each) that would make for a funny meme for this specific "
         "group, inspired by what they actually talk about and joke about."
     )
-    raw = llm_client.ask(SYSTEM_PROMPT, prompt, max_tokens=1000)
+    raw = llm_client.ask(SYSTEM_PROMPT, prompt, max_tokens=2000)
     data = json.loads(llm_client.strip_code_fence(raw))
 
     humour_style = data.get("humour_style") or DEFAULT_HUMOUR_STYLE

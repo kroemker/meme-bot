@@ -41,7 +41,16 @@ def _ask_openai(system: str, prompt: str, max_tokens: int) -> str:
             {"role": "user", "content": prompt},
         ],
     )
-    return response.choices[0].message.content.strip()
+    choice = response.choices[0]
+    content = (choice.message.content or "").strip()
+    if not content:
+        raise RuntimeError(
+            f"OpenAI returned no content (finish_reason={choice.finish_reason!r}). "
+            "Reasoning models can consume the whole max_completion_tokens budget "
+            "on hidden reasoning before writing any visible output — try raising "
+            "max_tokens for this call."
+        )
+    return content
 
 
 def strip_code_fence(text: str) -> str:
