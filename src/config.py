@@ -33,7 +33,7 @@ ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 CLAUDE_MODEL = _env("CLAUDE_MODEL", "claude-sonnet-5")
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
-OPENAI_MODEL = _env("OPENAI_MODEL", "gpt-4o-mini")
+OPENAI_MODEL = _env("OPENAI_MODEL", "gpt-5.6-terra")
 
 if LLM_PROVIDER == "anthropic" and not ANTHROPIC_API_KEY:
     raise RuntimeError("LLM_PROVIDER=anthropic requires ANTHROPIC_API_KEY to be set")
