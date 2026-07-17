@@ -1,6 +1,6 @@
 import json
 
-from . import claude_client, config, imgflip
+from . import config, imgflip, llm_client
 
 SYSTEM_PROMPT = (
     "You write short, punchy meme captions in the style of a specific meme "
@@ -20,7 +20,7 @@ def generate_meme(topic: str, humour_style: str) -> str:
         '"...", "bottom_text": "..."}. Keep each text line short (under 60 '
         "characters) and funny."
     )
-    raw = claude_client.ask(SYSTEM_PROMPT, prompt, max_tokens=200)
+    raw = llm_client.ask(SYSTEM_PROMPT, prompt, max_tokens=200)
     choice = json.loads(_strip_code_fence(raw))
 
     return imgflip.caption_image(

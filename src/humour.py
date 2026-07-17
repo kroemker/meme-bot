@@ -1,4 +1,4 @@
-from . import claude_client
+from . import llm_client
 
 SYSTEM_PROMPT = (
     "You are analyzing recent messages from a Discord meme channel to summarize "
@@ -22,4 +22,4 @@ def summarize(messages: list[str]) -> str:
         "themes, tone (dry/absurd/wholesome/dark/etc.), running jokes, and what "
         "kind of captions tend to land well."
     )
-    return claude_client.ask(SYSTEM_PROMPT, prompt, max_tokens=300)
+    return llm_client.ask(SYSTEM_PROMPT, prompt, max_tokens=300)
