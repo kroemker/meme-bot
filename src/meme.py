@@ -21,7 +21,7 @@ def generate_meme(topic: str, humour_style: str) -> str:
         "characters) and funny."
     )
     raw = llm_client.ask(SYSTEM_PROMPT, prompt, max_tokens=200)
-    choice = json.loads(_strip_code_fence(raw))
+    choice = json.loads(llm_client.strip_code_fence(raw))
 
     return imgflip.caption_image(
         template_id=str(choice["template_id"]),
@@ -30,12 +30,3 @@ def generate_meme(topic: str, humour_style: str) -> str:
         username=config.IMGFLIP_USERNAME,
         password=config.IMGFLIP_PASSWORD,
     )
-
-
-def _strip_code_fence(text: str) -> str:
-    text = text.strip()
-    if text.startswith("```"):
-        text = text.strip("`")
-        if text.startswith("json"):
-            text = text[len("json") :]
-    return text.strip()

@@ -42,3 +42,12 @@ def _ask_openai(system: str, prompt: str, max_tokens: int) -> str:
         ],
     )
     return response.choices[0].message.content.strip()
+
+
+def strip_code_fence(text: str) -> str:
+    text = text.strip()
+    if text.startswith("```"):
+        text = text.strip("`")
+        if text.startswith("json"):
+            text = text[len("json") :]
+    return text.strip()

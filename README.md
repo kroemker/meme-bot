@@ -8,15 +8,20 @@ own.
 
 Once a day (via a GitHub Actions cron job):
 
-1. Connects to Discord and reads the last 100 messages (per channel) from the
-   configured source channel(s) (your meme channel + any others you want it
-   to learn from).
-2. Sends that context to an LLM (Anthropic or OpenAI — your choice) to get a
-   short summary of the group's sense of humour.
-3. Picks a random topic.
+1. Connects to Discord and reads the last 100 messages (per channel), plus
+   each channel's name and description, from the configured source
+   channel(s) (your meme channel + any others you want it to learn from).
+2. Sends all of that to an LLM (Anthropic or OpenAI — your choice) in one
+   call to get both a summary of the group's sense of humour and a list of
+   20 topic ideas grounded in what the group actually talks about.
+3. Randomly picks one of those 20 topics.
 4. Asks the LLM to pick a matching [Imgflip](https://imgflip.com) template
    and write a top/bottom caption for it, in the group's style.
 5. Renders the meme via the Imgflip API and posts it to the target channel.
+
+A fresh set of 20 topics is generated every run — nothing is persisted
+between days, so topic variety comes from the LLM call itself rather than
+tracking history.
 
 ## Setup
 
@@ -29,6 +34,7 @@ Once a day (via a GitHub Actions cron job):
 5. Get the channel IDs (enable Developer Mode in Discord, then right-click a channel > Copy Channel ID):
    - `MEME_POST_CHANNEL_ID`: the channel the bot posts its daily meme to.
    - `SOURCE_CHANNEL_IDS`: comma-separated list of channel(s) it reads for humour context (your meme channel, and any others).
+6. Optional but recommended: set a **channel topic/description** on your meme channel (Edit Channel > Topic) — e.g. "post your best/worst memes, we roast each other." The bot reads this alongside the channel name so the LLM knows what the channel is actually for instead of guessing.
 
 ### 2. Get an LLM API key
 
@@ -60,7 +66,7 @@ Create a free account at [imgflip.com](https://imgflip.com) — `IMGFLIP_USERNAM
 | `ANTHROPIC_API_KEY` | Required if `LLM_PROVIDER=anthropic` |
 | `CLAUDE_MODEL` | Optional, default `claude-sonnet-5` |
 | `OPENAI_API_KEY` | Required if `LLM_PROVIDER=openai` |
-| `OPENAI_MODEL` | Optional, default `gpt-4o-mini` |
+| `OPENAI_MODEL` | Optional, default `gpt-5.6-terra` |
 | `MESSAGES_PER_CHANNEL_LIMIT` | Optional, default `100` — max messages fetched per source channel |
 
 Only the key pair for your chosen `LLM_PROVIDER` is required — you don't need
@@ -82,10 +88,10 @@ Actions tab via `workflow_dispatch`.
 
 ### Seeing what the LLM generated
 
-Each run writes a summary — the humour style it inferred, the chosen topic,
-and the resulting image URL — to the **Summary** panel of that Actions run
-(Actions tab > pick the run). It's also in the raw job log if you want more
-detail (e.g. `INFO:meme_bot:Humour style summary: ...`).
+Each run writes a summary — the inferred humour style, all 20 generated
+topics, the one chosen, and the resulting image URL — to the **Summary**
+panel of that Actions run (Actions tab > pick the run). It's also in the raw
+job log if you want more detail (e.g. `INFO:meme_bot:Humour style summary: ...`).
 
 ## Project layout
 
@@ -95,8 +101,8 @@ src/
   config.py           env var loading
   bot.py               Discord client: fetches history, posts the meme
   llm_client.py         Anthropic/OpenAI dispatcher (LLM_PROVIDER)
-  humour.py            summarizes the group's humour via the LLM
-  topic.py             random daily topic picker
+  analysis.py           humour-style summary + 20 topic ideas, one LLM call
+  topic.py             random pick from the generated topics
   meme.py               picks a template + writes captions via the LLM
   imgflip.py           Imgflip API client
 ```
