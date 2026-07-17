@@ -10,10 +10,10 @@ Once a day (via a GitHub Actions cron job):
 
 1. Connects to Discord and reads recent messages from the configured source
    channel(s) (your meme channel + any others you want it to learn from).
-2. Sends that context to Claude to get a short summary of the group's sense
-   of humour.
+2. Sends that context to an LLM (Anthropic or OpenAI — your choice) to get a
+   short summary of the group's sense of humour.
 3. Picks a random topic.
-4. Asks Claude to pick a matching [Imgflip](https://imgflip.com) template
+4. Asks the LLM to pick a matching [Imgflip](https://imgflip.com) template
    and write a top/bottom caption for it, in the group's style.
 5. Renders the meme via the Imgflip API and posts it to the target channel.
 
@@ -29,9 +29,14 @@ Once a day (via a GitHub Actions cron job):
    - `MEME_POST_CHANNEL_ID`: the channel the bot posts its daily meme to.
    - `SOURCE_CHANNEL_IDS`: comma-separated list of channel(s) it reads for humour context (your meme channel, and any others).
 
-### 2. Get an Anthropic API key
+### 2. Get an LLM API key
 
-Create a key at [console.anthropic.com](https://console.anthropic.com) — this is `ANTHROPIC_API_KEY`.
+Pick one provider (you can switch later via `LLM_PROVIDER`):
+
+- **Anthropic** (default): create a key at [console.anthropic.com](https://console.anthropic.com) — this is `ANTHROPIC_API_KEY`. Note this is separate from a Claude Pro/Max subscription — Pro doesn't grant API access, the API is billed separately (pay-as-you-go, prepaid credit).
+- **OpenAI**: create a key at [platform.openai.com](https://platform.openai.com/api-keys) — this is `OPENAI_API_KEY`. Same story — a ChatGPT Plus subscription doesn't grant API access, the API is billed separately.
+
+Either way, cost for this bot is tiny — two short calls a day.
 
 ### 3. Get Imgflip credentials
 
@@ -48,12 +53,18 @@ Create a free account at [imgflip.com](https://imgflip.com) — `IMGFLIP_USERNAM
 | `DISCORD_BOT_TOKEN` | Bot token from the Developer Portal |
 | `MEME_POST_CHANNEL_ID` | Channel ID the bot posts to |
 | `SOURCE_CHANNEL_IDS` | Comma-separated channel IDs the bot reads for humour context |
-| `ANTHROPIC_API_KEY` | Anthropic API key |
 | `IMGFLIP_USERNAME` | Imgflip account username |
 | `IMGFLIP_PASSWORD` | Imgflip account password |
+| `LLM_PROVIDER` | Optional, default `anthropic` — set to `openai` to use OpenAI instead |
+| `ANTHROPIC_API_KEY` | Required if `LLM_PROVIDER=anthropic` |
+| `CLAUDE_MODEL` | Optional, default `claude-sonnet-5` |
+| `OPENAI_API_KEY` | Required if `LLM_PROVIDER=openai` |
+| `OPENAI_MODEL` | Optional, default `gpt-4o-mini` |
 | `HUMOUR_LOOKBACK_DAYS` | Optional, default `7` — how many days of history to scan |
 | `MESSAGES_PER_CHANNEL_LIMIT` | Optional, default `200` — max messages fetched per source channel |
-| `CLAUDE_MODEL` | Optional, default `claude-sonnet-5` |
+
+Only the key pair for your chosen `LLM_PROVIDER` is required — you don't need
+both, but you can set both and flip `LLM_PROVIDER` any time to switch.
 
 ### 5. Run it
 
@@ -76,8 +87,9 @@ main.py              entrypoint
 src/
   config.py           env var loading
   bot.py               Discord client: fetches history, posts the meme
-  humour.py            summarizes the group's humour via Claude
+  llm_client.py         Anthropic/OpenAI dispatcher (LLM_PROVIDER)
+  humour.py            summarizes the group's humour via the LLM
   topic.py             random daily topic picker
-  meme.py               picks a template + writes captions via Claude
+  meme.py               picks a template + writes captions via the LLM
   imgflip.py           Imgflip API client
 ```
