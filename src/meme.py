@@ -12,50 +12,54 @@ JUDGE_SYSTEM_PROMPT = (
     "friend group. You always reply with strict JSON and nothing else."
 )
 
-CANDIDATE_COUNT = 3
 
-
-def generate_meme(topic: str, humour_style: str, example_captions: list[str]) -> str:
+def generate_meme(
+    topics: list[str], humour_style: str, example_captions: list[str]
+) -> tuple[str, str, str]:
+    """Drafts one candidate meme per topic, judges them, and renders the
+    winner. Returns (image_url, chosen_topic, explanation)."""
     templates = imgflip.get_templates()
     template_list = "\n".join(
         f"- id={t['id']}: {t['name']} (box_count={t['box_count']})" for t in templates
     )
+    topics_list = "\n".join(f"{i + 1}. {t}" for i, t in enumerate(topics))
 
     prompt = (
-        f"Topic for today's meme: {topic}\n\n"
+        f"Today's candidate topics (draft ONE meme per topic, same order):\n"
+        f"{topics_list}\n\n"
         f"This group's sense of humour:\n{humour_style}\n\n"
         f"{_examples_block(example_captions)}"
-        "Choose the best-fitting meme template from this list (box_count is "
-        f"how many text fields it has):\n{template_list}\n\n"
-        f"Generate {CANDIDATE_COUNT} DIFFERENT candidate memes — vary the "
-        "template and/or the joke angle across candidates, don't just "
-        "reword the same idea. Reply with ONLY a JSON object like "
-        '{"candidates": [{"template_id": "...", "texts": ["...", "..."]}, '
-        '...]}. Each candidate\'s "texts" array must have exactly as many '
-        "entries as its chosen template's box_count, in order. Keep each "
-        "entry short (under 60 characters) and funny, written in this "
-        "group's voice."
+        "For each topic, choose the best-fitting meme template from this "
+        f"list (box_count is how many text fields it has):\n{template_list}\n\n"
+        "Reply with ONLY a JSON object like "
+        '{"candidates": [{"topic": "...", "template_id": "...", "texts": '
+        '["...", "..."], "explanation": "..."}, ...]} with exactly '
+        f"{len(topics)} candidates, one per topic listed above, in the same "
+        'order. "texts" must have exactly as many entries as the chosen '
+        "template's box_count, in order. Keep each text entry short (under "
+        "60 characters) and funny, written in this group's voice. "
+        '"explanation" is one short, dry sentence explaining the joke or '
+        "reference, for someone who might not immediately get it."
     )
-    raw = llm_client.ask(GENERATE_SYSTEM_PROMPT, prompt, max_tokens=2000)
+    raw = llm_client.ask(GENERATE_SYSTEM_PROMPT, prompt, max_tokens=2500)
     data = json.loads(llm_client.strip_code_fence(raw))
     candidates = data.get("candidates") or []
     if not candidates:
         raise RuntimeError("LLM returned no meme candidates")
 
     templates_by_id = {str(t["id"]): t for t in templates}
-    best = _pick_best(topic, humour_style, candidates, templates_by_id)
+    best = _pick_best(humour_style, candidates, templates_by_id)
 
-    return imgflip.caption_image(
+    image_url = imgflip.caption_image(
         template_id=str(best["template_id"]),
         texts=best.get("texts") or [],
         username=config.IMGFLIP_USERNAME,
         password=config.IMGFLIP_PASSWORD,
     )
+    return image_url, best.get("topic") or topics[0], best.get("explanation") or ""
 
 
-def _pick_best(
-    topic: str, humour_style: str, candidates: list[dict], templates_by_id: dict
-) -> dict:
+def _pick_best(humour_style: str, candidates: list[dict], templates_by_id: dict) -> dict:
     if len(candidates) == 1:
         return candidates[0]
 
@@ -64,14 +68,13 @@ def _pick_best(
         template = templates_by_id.get(str(c.get("template_id")))
         template_name = template["name"] if template else c.get("template_id")
         texts = " / ".join(c.get("texts") or [])
-        listing.append(f"{i}: [{template_name}] {texts}")
+        listing.append(f'{i}: topic="{c.get("topic")}" [{template_name}] {texts}')
     listing_block = "\n".join(listing)
 
     prompt = (
-        f"Topic: {topic}\n\n"
         f"This group's sense of humour:\n{humour_style}\n\n"
-        f"Here are {len(candidates)} candidate memes drafted for today:\n"
-        f"{listing_block}\n\n"
+        f"Here are {len(candidates)} candidate memes drafted for today, "
+        f"each on a different topic:\n{listing_block}\n\n"
         "Pick the funniest, best-fitting one for this specific group. "
         'Reply with ONLY a JSON object like {"best_index": 0}.'
     )
