@@ -14,12 +14,18 @@ Once a day (via a GitHub Actions cron job):
 2. Sends all of that to an LLM (Anthropic or OpenAI — your choice) in one
    call to get both a summary of the group's sense of humour and a list of
    20 topic ideas grounded in what the group actually talks about.
-3. Randomly picks one of those 20 topics.
-4. Asks the LLM to pick a matching template from up to 100
+3. Randomly samples 3 of those 20 topics.
+4. Asks the LLM to draft one candidate meme per sampled topic — each free to
+   pick its own best-fitting template from up to 100
    [Imgflip](https://imgflip.com) templates (any box count, not just
-   top/bottom) and write captions for it, using the group's most-reacted
-   recent messages as concrete style examples.
-5. Renders the meme via the Imgflip API and posts it to the target channel.
+   top/bottom) — using the group's most-reacted recent messages as concrete
+   style examples. Topic and template are chosen together per candidate,
+   rather than picking a topic first and fitting a template to it after.
+5. A second LLM call judges the 3 drafts and picks the funniest, best-fitting
+   one for the group.
+6. Renders the winning meme via the Imgflip API and posts it to the target
+   channel, with a one-line explanation of the joke posted underneath as a
+   Discord spoiler (`||like this||`) for anyone who doesn't get it.
 
 A fresh set of 20 topics is generated every run — nothing is persisted
 between days, so topic variety comes from the LLM call itself rather than

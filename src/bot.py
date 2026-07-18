@@ -31,16 +31,26 @@ class MemeBot(discord.Client):
         logger.info("Generated topics: %s", topics)
         logger.info("Example captions: %s", example_captions)
 
-        chosen_topic = topic.choose(topics)
-        logger.info("Topic: %s", chosen_topic)
+        candidate_topics = topic.sample(topics, n=3)
+        logger.info("Candidate topics: %s", candidate_topics)
 
-        image_url = meme.generate_meme(chosen_topic, humour_style, example_captions)
+        image_url, chosen_topic, explanation = meme.generate_meme(
+            candidate_topics, humour_style, example_captions
+        )
+        logger.info("Topic: %s", chosen_topic)
         logger.info("Generated meme: %s", image_url)
+        logger.info("Explanation: %s", explanation)
+
+        content = f"Today's meme topic: **{chosen_topic}**\n{image_url}"
+        if explanation:
+            content += f"\n||{explanation}||"
 
         post_channel = await self._get_channel(config.MEME_POST_CHANNEL_ID)
-        await post_channel.send(content=f"Today's meme topic: **{chosen_topic}**\n{image_url}")
+        await post_channel.send(content=content)
 
-        _write_step_summary(humour_style, topics, example_captions, chosen_topic, image_url)
+        _write_step_summary(
+            humour_style, topics, example_captions, chosen_topic, explanation, image_url
+        )
 
     async def _collect_channel_context(self) -> list[dict]:
         channels_context = []
@@ -75,6 +85,7 @@ def _write_step_summary(
     topics: list[str],
     example_captions: list[str],
     chosen_topic: str,
+    explanation: str,
     image_url: str,
 ):
     summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
@@ -86,6 +97,7 @@ def _write_step_summary(
         f.write(
             f"## Daily meme\n\n"
             f"**Topic:** {chosen_topic}\n\n"
+            f"**Explanation:** {explanation}\n\n"
             f"**Humour style summary:**\n{humour_style}\n\n"
             f"**Today's generated topics:**\n{topics_list}\n\n"
             f"**Top-reacted example messages used as style reference:**\n{examples_list}\n\n"
