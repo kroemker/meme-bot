@@ -26,19 +26,21 @@ class MemeBot(discord.Client):
     async def post_daily_meme(self):
         channels_context = await self._collect_channel_context()
         humour_style, topics = analysis.analyze(channels_context)
+        example_captions = analysis.top_examples(channels_context)
         logger.info("Humour style summary: %s", humour_style)
         logger.info("Generated topics: %s", topics)
+        logger.info("Example captions: %s", example_captions)
 
         chosen_topic = topic.choose(topics)
         logger.info("Topic: %s", chosen_topic)
 
-        image_url = meme.generate_meme(chosen_topic, humour_style)
+        image_url = meme.generate_meme(chosen_topic, humour_style, example_captions)
         logger.info("Generated meme: %s", image_url)
 
         post_channel = await self._get_channel(config.MEME_POST_CHANNEL_ID)
         await post_channel.send(content=f"Today's meme topic: **{chosen_topic}**\n{image_url}")
 
-        _write_step_summary(humour_style, topics, chosen_topic, image_url)
+        _write_step_summary(humour_style, topics, example_captions, chosen_topic, image_url)
 
     async def _collect_channel_context(self) -> list[dict]:
         channels_context = []
@@ -54,7 +56,7 @@ class MemeBot(discord.Client):
                 if not text:
                     continue
                 reactions = sum(r.count for r in message.reactions)
-                messages.append(f"{text} (reactions: {reactions})")
+                messages.append({"text": text, "reactions": reactions})
             channels_context.append(
                 {
                     "name": getattr(channel, "name", str(channel_id)),
@@ -69,18 +71,24 @@ class MemeBot(discord.Client):
 
 
 def _write_step_summary(
-    humour_style: str, topics: list[str], chosen_topic: str, image_url: str
+    humour_style: str,
+    topics: list[str],
+    example_captions: list[str],
+    chosen_topic: str,
+    image_url: str,
 ):
     summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
     if not summary_path:
         return
     topics_list = "\n".join(f"- {t}" for t in topics)
+    examples_list = "\n".join(f"- {c}" for c in example_captions) or "(none)"
     with open(summary_path, "a") as f:
         f.write(
             f"## Daily meme\n\n"
             f"**Topic:** {chosen_topic}\n\n"
             f"**Humour style summary:**\n{humour_style}\n\n"
             f"**Today's generated topics:**\n{topics_list}\n\n"
+            f"**Top-reacted example messages used as style reference:**\n{examples_list}\n\n"
             f"**Image:** {image_url}\n"
         )
 
