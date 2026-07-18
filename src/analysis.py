@@ -32,7 +32,10 @@ def analyze(channels: list[dict]) -> tuple[str, list[str]]:
         header = f"### #{c['name']}"
         if c["topic"]:
             header += f" (channel description: {c['topic']})"
-        body = "\n".join(f"- {m}" for m in c["messages"]) or "(no recent messages)"
+        body = (
+            "\n".join(f"- {m['text']} (reactions: {m['reactions']})" for m in c["messages"])
+            or "(no recent messages)"
+        )
         sections.append(f"{header}\n{body}")
     joined = "\n\n".join(sections)
 
@@ -58,3 +61,14 @@ def analyze(channels: list[dict]) -> tuple[str, list[str]]:
     humour_style = data.get("humour_style") or DEFAULT_HUMOUR_STYLE
     topics = data.get("topics") or DEFAULT_TOPICS
     return humour_style, topics
+
+
+def top_examples(channels: list[dict], limit: int = 8) -> list[str]:
+    candidates = [
+        m
+        for c in channels
+        for m in c["messages"]
+        if m["text"] != "[image attached]"
+    ]
+    candidates.sort(key=lambda m: m["reactions"], reverse=True)
+    return [m["text"] for m in candidates[:limit]]

@@ -15,8 +15,10 @@ Once a day (via a GitHub Actions cron job):
    call to get both a summary of the group's sense of humour and a list of
    20 topic ideas grounded in what the group actually talks about.
 3. Randomly picks one of those 20 topics.
-4. Asks the LLM to pick a matching [Imgflip](https://imgflip.com) template
-   and write a top/bottom caption for it, in the group's style.
+4. Asks the LLM to pick a matching template from up to 100
+   [Imgflip](https://imgflip.com) templates (any box count, not just
+   top/bottom) and write captions for it, using the group's most-reacted
+   recent messages as concrete style examples.
 5. Renders the meme via the Imgflip API and posts it to the target channel.
 
 A fresh set of 20 topics is generated every run — nothing is persisted
@@ -89,9 +91,10 @@ Actions tab via `workflow_dispatch`.
 ### Seeing what the LLM generated
 
 Each run writes a summary — the inferred humour style, all 20 generated
-topics, the one chosen, and the resulting image URL — to the **Summary**
-panel of that Actions run (Actions tab > pick the run). It's also in the raw
-job log if you want more detail (e.g. `INFO:meme_bot:Humour style summary: ...`).
+topics, the one chosen, the top-reacted messages used as style examples, and
+the resulting image URL — to the **Summary** panel of that Actions run
+(Actions tab > pick the run). It's also in the raw job log if you want more
+detail (e.g. `INFO:meme_bot:Humour style summary: ...`).
 
 ## Project layout
 
