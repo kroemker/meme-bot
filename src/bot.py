@@ -34,12 +34,13 @@ class MemeBot(discord.Client):
         candidate_topics = topic.sample(topics, n=3)
         logger.info("Candidate topics: %s", candidate_topics)
 
-        image_url, chosen_topic, explanation = meme.generate_meme(
+        image_url, chosen_topic, explanation, candidate_summaries = meme.generate_meme(
             candidate_topics, humour_style, example_captions
         )
         logger.info("Topic: %s", chosen_topic)
         logger.info("Generated meme: %s", image_url)
         logger.info("Explanation: %s", explanation)
+        logger.info("Candidates: %s", candidate_summaries)
 
         content = f"Today's meme topic: **{chosen_topic}**\n{image_url}"
         if explanation:
@@ -49,7 +50,13 @@ class MemeBot(discord.Client):
         await post_channel.send(content=content)
 
         _write_step_summary(
-            humour_style, topics, example_captions, chosen_topic, explanation, image_url
+            humour_style,
+            topics,
+            example_captions,
+            candidate_summaries,
+            chosen_topic,
+            explanation,
+            image_url,
         )
 
     async def _collect_channel_context(self) -> list[dict]:
@@ -84,6 +91,7 @@ def _write_step_summary(
     humour_style: str,
     topics: list[str],
     example_captions: list[str],
+    candidate_summaries: list[str],
     chosen_topic: str,
     explanation: str,
     image_url: str,
@@ -93,11 +101,13 @@ def _write_step_summary(
         return
     topics_list = "\n".join(f"- {t}" for t in topics)
     examples_list = "\n".join(f"- {c}" for c in example_captions) or "(none)"
+    candidates_list = "\n".join(f"- {c}" for c in candidate_summaries) or "(none)"
     with open(summary_path, "a") as f:
         f.write(
             f"## Daily meme\n\n"
             f"**Topic:** {chosen_topic}\n\n"
             f"**Explanation:** {explanation}\n\n"
+            f"**Candidate memes drafted today:**\n{candidates_list}\n\n"
             f"**Humour style summary:**\n{humour_style}\n\n"
             f"**Today's generated topics:**\n{topics_list}\n\n"
             f"**Top-reacted example messages used as style reference:**\n{examples_list}\n\n"
