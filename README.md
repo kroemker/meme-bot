@@ -97,10 +97,11 @@ Actions tab via `workflow_dispatch`.
 ### Seeing what the LLM generated
 
 Each run writes a summary — the inferred humour style, all 20 generated
-topics, the one chosen, the top-reacted messages used as style examples, and
-the resulting image URL — to the **Summary** panel of that Actions run
-(Actions tab > pick the run). It's also in the raw job log if you want more
-detail (e.g. `INFO:meme_bot:Humour style summary: ...`).
+topics, the 3 candidate memes drafted (topic, template, texts, explanation,
+and which one won), the top-reacted messages used as style examples, and the
+resulting image URL — to the **Summary** panel of that Actions run (Actions
+tab > pick the run). It's also in the raw job log if you want more detail
+(e.g. `INFO:meme_bot:Humour style summary: ...`).
 
 ## Project layout
 

@@ -15,9 +15,9 @@ JUDGE_SYSTEM_PROMPT = (
 
 def generate_meme(
     topics: list[str], humour_style: str, example_captions: list[str]
-) -> tuple[str, str, str]:
+) -> tuple[str, str, str, list[str]]:
     """Drafts one candidate meme per topic, judges them, and renders the
-    winner. Returns (image_url, chosen_topic, explanation)."""
+    winner. Returns (image_url, chosen_topic, explanation, candidate_summaries)."""
     templates = imgflip.get_templates()
     template_list = "\n".join(
         f"- id={t['id']}: {t['name']} (box_count={t['box_count']})" for t in templates
@@ -48,7 +48,13 @@ def generate_meme(
         raise RuntimeError("LLM returned no meme candidates")
 
     templates_by_id = {str(t["id"]): t for t in templates}
-    best = _pick_best(humour_style, candidates, templates_by_id)
+    best_index = _pick_best_index(humour_style, candidates, templates_by_id)
+    best = candidates[best_index]
+
+    candidate_summaries = [
+        _format_candidate(i, c, templates_by_id, is_winner=(i == best_index))
+        for i, c in enumerate(candidates)
+    ]
 
     image_url = imgflip.caption_image(
         template_id=str(best["template_id"]),
@@ -56,25 +62,25 @@ def generate_meme(
         username=config.IMGFLIP_USERNAME,
         password=config.IMGFLIP_PASSWORD,
     )
-    return image_url, best.get("topic") or topics[0], best.get("explanation") or ""
+    return (
+        image_url,
+        best.get("topic") or topics[0],
+        best.get("explanation") or "",
+        candidate_summaries,
+    )
 
 
-def _pick_best(humour_style: str, candidates: list[dict], templates_by_id: dict) -> dict:
+def _pick_best_index(humour_style: str, candidates: list[dict], templates_by_id: dict) -> int:
     if len(candidates) == 1:
-        return candidates[0]
+        return 0
 
-    listing = []
-    for i, c in enumerate(candidates):
-        template = templates_by_id.get(str(c.get("template_id")))
-        template_name = template["name"] if template else c.get("template_id")
-        texts = " / ".join(c.get("texts") or [])
-        listing.append(f'{i}: topic="{c.get("topic")}" [{template_name}] {texts}')
-    listing_block = "\n".join(listing)
-
+    listing = "\n".join(
+        _format_candidate(i, c, templates_by_id) for i, c in enumerate(candidates)
+    )
     prompt = (
         f"This group's sense of humour:\n{humour_style}\n\n"
         f"Here are {len(candidates)} candidate memes drafted for today, "
-        f"each on a different topic:\n{listing_block}\n\n"
+        f"each on a different topic:\n{listing}\n\n"
         "Pick the funniest, best-fitting one for this specific group. "
         'Reply with ONLY a JSON object like {"best_index": 0}.'
     )
@@ -83,7 +89,18 @@ def _pick_best(humour_style: str, candidates: list[dict], templates_by_id: dict)
     index = data.get("best_index", 0)
     if not isinstance(index, int) or not (0 <= index < len(candidates)):
         index = 0
-    return candidates[index]
+    return index
+
+
+def _format_candidate(
+    i: int, c: dict, templates_by_id: dict, is_winner: bool = False
+) -> str:
+    template = templates_by_id.get(str(c.get("template_id")))
+    template_name = template["name"] if template else c.get("template_id")
+    texts = " / ".join(c.get("texts") or [])
+    explanation = c.get("explanation") or ""
+    marker = " (chosen)" if is_winner else ""
+    return f'{i}: topic="{c.get("topic")}" [{template_name}] {texts} — {explanation}{marker}'
 
 
 def _examples_block(example_captions: list[str]) -> str:
