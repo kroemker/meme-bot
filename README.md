@@ -11,6 +11,10 @@ Once a day (via a GitHub Actions cron job):
 1. Connects to Discord and reads the last 100 messages (per channel), plus
    each channel's name and description, from the configured source
    channel(s) (your meme channel + any others you want it to learn from).
+   Links in messages (YouTube especially, plus a best-effort page-title
+   fetch for other links) are resolved to a short description — e.g. a bare
+   `https://youtu.be/...` becomes `[YouTube: "title" by channel]` — so the
+   LLM understands link-only posts instead of seeing an opaque URL.
 2. Sends all of that to an LLM (Anthropic or OpenAI — your choice) in one
    call to get both a summary of the group's sense of humour and a list of
    20 topic ideas grounded in what the group actually talks about.

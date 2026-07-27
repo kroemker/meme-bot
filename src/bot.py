@@ -1,9 +1,10 @@
+import asyncio
 import logging
 import os
 
 import discord
 
-from . import analysis, config, meme, topic
+from . import analysis, config, links, meme, topic
 
 logger = logging.getLogger("meme_bot")
 
@@ -60,6 +61,7 @@ class MemeBot(discord.Client):
         )
 
     async def _collect_channel_context(self) -> list[dict]:
+        resolver = links.LinkResolver()
         channels_context = []
         for channel_id in config.SOURCE_CHANNEL_IDS:
             channel = await self._get_channel(channel_id)
@@ -68,6 +70,10 @@ class MemeBot(discord.Client):
                 if message.author.bot:
                     continue
                 text = message.content.strip()
+                # Runs link resolution (blocking HTTP calls) in a thread so
+                # it doesn't stall the event loop and risk a gateway
+                # heartbeat timeout.
+                text = await asyncio.to_thread(resolver.annotate, text)
                 if message.attachments:
                     text = (text + " [image attached]").strip()
                 if not text:
