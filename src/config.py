@@ -22,6 +22,16 @@ IMGFLIP_PASSWORD = os.environ["IMGFLIP_PASSWORD"]
 
 MESSAGES_PER_CHANNEL_LIMIT = int(_env("MESSAGES_PER_CHANNEL_LIMIT", "100"))
 
+# "daily_meme" (default) or "weekly_recap".
+RUN_MODE = _env("RUN_MODE", "daily_meme")
+if RUN_MODE not in ("daily_meme", "weekly_recap"):
+    raise ValueError(
+        f"Unsupported RUN_MODE: {RUN_MODE!r} (expected 'daily_meme' or 'weekly_recap')"
+    )
+
+RECAP_LOOKBACK_DAYS = int(_env("RECAP_LOOKBACK_DAYS", "7"))
+RECAP_MESSAGES_PER_CHANNEL_LIMIT = int(_env("RECAP_MESSAGES_PER_CHANNEL_LIMIT", "500"))
+
 # LLM provider selection: "anthropic" (default) or "openai".
 LLM_PROVIDER = _env("LLM_PROVIDER", "anthropic").lower()
 if LLM_PROVIDER not in ("anthropic", "openai"):

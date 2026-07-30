@@ -1,12 +1,12 @@
 # meme-bot
 
 A Discord bot that scans your meme channel(s) to get a feel for your friend
-group's humour, then posts one AI-captioned meme a day to a channel of its
-own.
+group's humour, then posts one AI-captioned meme a day and a weekly recap to
+a channel of its own.
 
 ## How it works
 
-Once a day (via a GitHub Actions cron job):
+### Daily meme (via a GitHub Actions cron job)
 
 1. Connects to Discord and reads the last 100 messages (per channel), plus
    each channel's name and description, from the configured source
@@ -15,10 +15,14 @@ Once a day (via a GitHub Actions cron job):
    fetch for other links) are resolved to a short description — e.g. a bare
    `https://youtu.be/...` becomes `[YouTube: "title" by channel]` — so the
    LLM understands link-only posts instead of seeing an opaque URL.
-2. Sends all of that to an LLM (Anthropic or OpenAI — your choice) in one
-   call to get both a summary of the group's sense of humour and a list of
-   20 topic ideas grounded in what the group actually talks about.
-3. Randomly samples 3 of those 20 topics.
+2. Scans the bot's own recent posts in the target channel for the last 10
+   topics it's already used (parsed straight out of its own past messages,
+   no separate state to maintain), then sends all of that to an LLM
+   (Anthropic or OpenAI — your choice) in one call to get both a summary of
+   the group's sense of humour and a list of 10 fresh topic ideas grounded
+   in what the group actually talks about, explicitly avoiding anything
+   close to those last 10.
+3. Randomly samples 3 of those 10 topics.
 4. Asks the LLM to draft one candidate meme per sampled topic — each free to
    pick its own best-fitting template from up to 100
    [Imgflip](https://imgflip.com) templates (any box count, not just
@@ -31,9 +35,17 @@ Once a day (via a GitHub Actions cron job):
    channel, with a one-line explanation of the joke posted underneath as a
    Discord spoiler (`||like this||`) for anyone who doesn't get it.
 
-A fresh set of 20 topics is generated every run — nothing is persisted
-between days, so topic variety comes from the LLM call itself rather than
-tracking history.
+Nothing is persisted between days for topic variety — the last-10-topics
+check is derived by reading the channel's own message history each run,
+not stored anywhere separately.
+
+### Weekly recap (via a second GitHub Actions cron job)
+
+Once a week, the bot reads the past 7 days of messages (time-windowed, not
+capped by message count like the daily job) from the same source channels
+and asks the LLM to write a short, funny recap of the week's running jokes
+and highlights, posted as plain text to the same target channel — no image
+generation involved.
 
 ## Setup
 
@@ -79,7 +91,10 @@ Create a free account at [imgflip.com](https://imgflip.com) — `IMGFLIP_USERNAM
 | `CLAUDE_MODEL` | Optional, default `claude-sonnet-5` |
 | `OPENAI_API_KEY` | Required if `LLM_PROVIDER=openai` |
 | `OPENAI_MODEL` | Optional, default `gpt-5.6-terra` |
-| `MESSAGES_PER_CHANNEL_LIMIT` | Optional, default `100` — max messages fetched per source channel |
+| `MESSAGES_PER_CHANNEL_LIMIT` | Optional, default `100` — max messages fetched per source channel for the daily meme |
+| `RUN_MODE` | Optional, default `daily_meme` — set to `weekly_recap` by the weekly workflow, not something you need to set yourself |
+| `RECAP_LOOKBACK_DAYS` | Optional, default `7` — how many days back the weekly recap looks |
+| `RECAP_MESSAGES_PER_CHANNEL_LIMIT` | Optional, default `500` — safety cap on messages fetched per channel for the recap |
 
 Only the key pair for your chosen `LLM_PROVIDER` is required — you don't need
 both, but you can set both and flip `LLM_PROVIDER` any time to switch.
@@ -93,19 +108,25 @@ pip install -r requirements.txt
 python main.py
 ```
 
-In production, the `.github/workflows/daily-meme.yml` workflow runs this
-automatically once a day (`0 18 * * *` UTC by default — edit the cron
-expression to change the time). You can also trigger it manually from the
-Actions tab via `workflow_dispatch`.
+In production, two workflows run this automatically:
+
+- `.github/workflows/daily-meme.yml` — daily (`0 18 * * *` UTC by default).
+- `.github/workflows/weekly-recap.yml` — weekly, Sundays (`0 18 * * 0` UTC by
+  default), sets `RUN_MODE=weekly_recap`.
+
+Edit the cron expressions to change the timing. Both can also be triggered
+manually from the Actions tab via `workflow_dispatch`.
 
 ### Seeing what the LLM generated
 
-Each run writes a summary — the inferred humour style, all 20 generated
-topics, the 3 candidate memes drafted (topic, template, texts, explanation,
-and which one won), the top-reacted messages used as style examples, and the
-resulting image URL — to the **Summary** panel of that Actions run (Actions
-tab > pick the run). It's also in the raw job log if you want more detail
-(e.g. `INFO:meme_bot:Humour style summary: ...`).
+Each daily-meme run writes a summary — the inferred humour style, the 10
+generated topics, the last-10-topics it was told to avoid, the 3 candidate
+memes drafted (topic, template, texts, explanation, and which one won), the
+top-reacted messages used as style examples, and the resulting image URL —
+to the **Summary** panel of that Actions run (Actions tab > pick the run).
+Each weekly-recap run writes the generated recap text there too. It's also
+in the raw job log if you want more detail (e.g.
+`INFO:meme_bot:Humour style summary: ...`).
 
 ## Project layout
 
@@ -113,10 +134,12 @@ tab > pick the run). It's also in the raw job log if you want more detail
 main.py              entrypoint
 src/
   config.py           env var loading
-  bot.py               Discord client: fetches history, posts the meme
+  bot.py               Discord client: fetches history, posts the meme/recap
   llm_client.py         Anthropic/OpenAI dispatcher (LLM_PROVIDER)
-  analysis.py           humour-style summary + 20 topic ideas, one LLM call
-  topic.py             random pick from the generated topics
-  meme.py               picks a template + writes captions via the LLM
+  analysis.py           humour-style summary + topic ideas, one LLM call
+  topic.py             random sample from the generated topics
+  meme.py               drafts candidates, judges, writes captions via the LLM
   imgflip.py           Imgflip API client
+  links.py             resolves URLs in messages to short descriptions
+  recap.py             weekly recap text generation via the LLM
 ```

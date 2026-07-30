@@ -1,12 +1,16 @@
 import asyncio
+import datetime
 import logging
 import os
+import re
 
 import discord
 
-from . import analysis, config, links, meme, topic
+from . import analysis, config, links, meme, recap, topic
 
 logger = logging.getLogger("meme_bot")
+
+TOPIC_MESSAGE_PATTERN = re.compile(r"Today's meme topic: \*\*(.+?)\*\*")
 
 
 class MemeBot(discord.Client):
@@ -17,16 +21,24 @@ class MemeBot(discord.Client):
     async def on_ready(self):
         logger.info("Logged in as %s", self.user)
         try:
-            await self.post_daily_meme()
+            if config.RUN_MODE == "weekly_recap":
+                await self.post_weekly_recap()
+            else:
+                await self.post_daily_meme()
         except Exception:
-            logger.exception("Failed to post daily meme")
+            logger.exception("Failed to run bot task")
             self.failed = True
         finally:
             await self.close()
 
     async def post_daily_meme(self):
-        channels_context = await self._collect_channel_context()
-        humour_style, topics = analysis.analyze(channels_context)
+        channels_context = await self._collect_channel_context(
+            limit=config.MESSAGES_PER_CHANNEL_LIMIT
+        )
+        avoid_topics = await self._recent_used_topics()
+        logger.info("Avoiding recently used topics: %s", avoid_topics)
+
+        humour_style, topics = analysis.analyze(channels_context, avoid_topics=avoid_topics)
         example_captions = analysis.top_examples(channels_context)
         logger.info("Humour style summary: %s", humour_style)
         logger.info("Generated topics: %s", topics)
@@ -50,9 +62,10 @@ class MemeBot(discord.Client):
         post_channel = await self._get_channel(config.MEME_POST_CHANNEL_ID)
         await post_channel.send(content=content)
 
-        _write_step_summary(
+        _write_meme_step_summary(
             humour_style,
             topics,
+            avoid_topics,
             example_captions,
             candidate_summaries,
             chosen_topic,
@@ -60,13 +73,30 @@ class MemeBot(discord.Client):
             image_url,
         )
 
-    async def _collect_channel_context(self) -> list[dict]:
+    async def post_weekly_recap(self):
+        cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
+            days=config.RECAP_LOOKBACK_DAYS
+        )
+        channels_context = await self._collect_channel_context(
+            limit=config.RECAP_MESSAGES_PER_CHANNEL_LIMIT, after=cutoff
+        )
+        recap_text = recap.generate_recap(channels_context)
+        logger.info("Weekly recap: %s", recap_text)
+
+        post_channel = await self._get_channel(config.MEME_POST_CHANNEL_ID)
+        await post_channel.send(content=recap_text)
+
+        _write_recap_step_summary(recap_text)
+
+    async def _collect_channel_context(
+        self, *, limit: int | None, after: datetime.datetime | None = None
+    ) -> list[dict]:
         resolver = links.LinkResolver()
         channels_context = []
         for channel_id in config.SOURCE_CHANNEL_IDS:
             channel = await self._get_channel(channel_id)
             messages = []
-            async for message in channel.history(limit=config.MESSAGES_PER_CHANNEL_LIMIT):
+            async for message in channel.history(limit=limit, after=after):
                 if message.author.bot:
                     continue
                 text = message.content.strip()
@@ -89,13 +119,27 @@ class MemeBot(discord.Client):
             )
         return channels_context
 
+    async def _recent_used_topics(self, limit: int = 10, scan_limit: int = 50) -> list[str]:
+        post_channel = await self._get_channel(config.MEME_POST_CHANNEL_ID)
+        topics_used = []
+        async for message in post_channel.history(limit=scan_limit):
+            if message.author.id != self.user.id:
+                continue
+            match = TOPIC_MESSAGE_PATTERN.search(message.content)
+            if match:
+                topics_used.append(match.group(1))
+            if len(topics_used) >= limit:
+                break
+        return topics_used
+
     async def _get_channel(self, channel_id: int):
         return self.get_channel(channel_id) or await self.fetch_channel(channel_id)
 
 
-def _write_step_summary(
+def _write_meme_step_summary(
     humour_style: str,
     topics: list[str],
+    avoid_topics: list[str],
     example_captions: list[str],
     candidate_summaries: list[str],
     chosen_topic: str,
@@ -106,6 +150,7 @@ def _write_step_summary(
     if not summary_path:
         return
     topics_list = "\n".join(f"- {t}" for t in topics)
+    avoid_list = "\n".join(f"- {t}" for t in avoid_topics) or "(none)"
     examples_list = "\n".join(f"- {c}" for c in example_captions) or "(none)"
     candidates_list = "\n".join(f"- {c}" for c in candidate_summaries) or "(none)"
     with open(summary_path, "a") as f:
@@ -116,9 +161,18 @@ def _write_step_summary(
             f"**Candidate memes drafted today:**\n{candidates_list}\n\n"
             f"**Humour style summary:**\n{humour_style}\n\n"
             f"**Today's generated topics:**\n{topics_list}\n\n"
+            f"**Recently used topics avoided:**\n{avoid_list}\n\n"
             f"**Top-reacted example messages used as style reference:**\n{examples_list}\n\n"
             f"**Image:** {image_url}\n"
         )
+
+
+def _write_recap_step_summary(recap_text: str):
+    summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not summary_path:
+        return
+    with open(summary_path, "a") as f:
+        f.write(f"## Weekly recap\n\n{recap_text}\n")
 
 
 def run():
