@@ -19,8 +19,11 @@ def caption_image(template_id: str, texts: list[str], username: str, password: s
         "username": username,
         "password": password,
     }
+    # Imgflip's API only reliably applies text0/text1 for classic 2-box
+    # templates; anything with more boxes needs the boxes[i][text]
+    # indexed-array form instead, or the extra boxes render blank.
     for i, text in enumerate(texts):
-        payload[f"text{i}"] = text
+        payload[f"boxes[{i}][text]"] = text
 
     response = requests.post(CAPTION_URL, data=payload, timeout=10)
     response.raise_for_status()
