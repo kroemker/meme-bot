@@ -23,7 +23,11 @@ DEFAULT_TOPICS = [
 ]
 
 
-def analyze(channels: list[dict]) -> tuple[str, list[str]]:
+def analyze(
+    channels: list[dict],
+    avoid_topics: list[str] | None = None,
+    topic_count: int = 10,
+) -> tuple[str, list[str]]:
     if not any(c["messages"] for c in channels):
         return DEFAULT_HUMOUR_STYLE, DEFAULT_TOPICS
 
@@ -39,21 +43,31 @@ def analyze(channels: list[dict]) -> tuple[str, list[str]]:
         sections.append(f"{header}\n{body}")
     joined = "\n\n".join(sections)
 
+    avoid_block = ""
+    if avoid_topics:
+        avoid_list = "\n".join(f"- {t}" for t in avoid_topics)
+        avoid_block = (
+            "\nDo NOT reuse any of these recently used topics, and avoid "
+            f"anything even loosely similar to them, aim for real variety:\n{avoid_list}\n"
+        )
+
     prompt = (
         "Here are recent messages from a friend group's Discord channels, "
         "including their meme channel(s) where they post memes for each other "
         "(each channel's name and description, if set, are given so you know "
         "what the channel is for):\n\n"
-        f"{joined}\n\n"
+        f"{joined}\n"
+        f"{avoid_block}\n"
         "Respond with ONLY a JSON object with two keys:\n"
         '- "humour_style": 3-5 bullet points (as a single newline-separated '
         "string) describing this group's sense of humour — recurring "
         "themes, tone (dry/absurd/wholesome/dark/etc.), running jokes, and "
         "what kind of captions tend to land well, judging by what actually "
         "gets posted and reacted to in their meme channel(s).\n"
-        '- "topics": a list of exactly 20 short, varied topic phrases (2-5 '
-        "words each) that would make for a funny meme for this specific "
-        "group, inspired by what they actually talk about and joke about."
+        f'- "topics": a list of exactly {topic_count} short, varied topic '
+        "phrases (2-5 words each) that would make for a funny meme for "
+        "this specific group, inspired by what they actually talk about "
+        "and joke about."
     )
     raw = llm_client.ask(SYSTEM_PROMPT, prompt, max_tokens=2000)
     data = json.loads(llm_client.strip_code_fence(raw))
