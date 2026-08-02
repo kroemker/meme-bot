@@ -10,7 +10,7 @@ from . import analysis, config, links, meme, recap, topic
 
 logger = logging.getLogger("meme_bot")
 
-TOPIC_MESSAGE_PATTERN = re.compile(r"Today's meme topic: \*\*(.+?)\*\*")
+EXPLANATION_PATTERN = re.compile(r"\|\|(.+?)\|\|")
 
 
 class MemeBot(discord.Client):
@@ -35,10 +35,10 @@ class MemeBot(discord.Client):
         channels_context = await self._collect_channel_context(
             limit=config.MESSAGES_PER_CHANNEL_LIMIT
         )
-        avoid_topics = await self._recent_used_topics()
-        logger.info("Avoiding recently used topics: %s", avoid_topics)
+        avoid_jokes = await self._recent_used_jokes()
+        logger.info("Avoiding recent joke angles: %s", avoid_jokes)
 
-        humour_style, topics = analysis.analyze(channels_context, avoid_topics=avoid_topics)
+        humour_style, topics = analysis.analyze(channels_context)
         example_captions = analysis.top_examples(channels_context)
         logger.info("Humour style summary: %s", humour_style)
         logger.info("Generated topics: %s", topics)
@@ -48,7 +48,7 @@ class MemeBot(discord.Client):
         logger.info("Candidate topics: %s", candidate_topics)
 
         image_url, chosen_topic, explanation, candidate_summaries = meme.generate_meme(
-            candidate_topics, humour_style, example_captions
+            candidate_topics, humour_style, example_captions, avoid_jokes
         )
         logger.info("Topic: %s", chosen_topic)
         logger.info("Generated meme: %s", image_url)
@@ -65,7 +65,7 @@ class MemeBot(discord.Client):
         _write_meme_step_summary(
             humour_style,
             topics,
-            avoid_topics,
+            avoid_jokes,
             example_captions,
             candidate_summaries,
             chosen_topic,
@@ -119,18 +119,18 @@ class MemeBot(discord.Client):
             )
         return channels_context
 
-    async def _recent_used_topics(self, limit: int = 10, scan_limit: int = 50) -> list[str]:
+    async def _recent_used_jokes(self, limit: int = 10, scan_limit: int = 50) -> list[str]:
         post_channel = await self._get_channel(config.MEME_POST_CHANNEL_ID)
-        topics_used = []
+        jokes_used = []
         async for message in post_channel.history(limit=scan_limit):
             if message.author.id != self.user.id:
                 continue
-            match = TOPIC_MESSAGE_PATTERN.search(message.content)
+            match = EXPLANATION_PATTERN.search(message.content)
             if match:
-                topics_used.append(match.group(1))
-            if len(topics_used) >= limit:
+                jokes_used.append(match.group(1))
+            if len(jokes_used) >= limit:
                 break
-        return topics_used
+        return jokes_used
 
     async def _get_channel(self, channel_id: int):
         return self.get_channel(channel_id) or await self.fetch_channel(channel_id)
@@ -139,7 +139,7 @@ class MemeBot(discord.Client):
 def _write_meme_step_summary(
     humour_style: str,
     topics: list[str],
-    avoid_topics: list[str],
+    avoid_jokes: list[str],
     example_captions: list[str],
     candidate_summaries: list[str],
     chosen_topic: str,
@@ -150,7 +150,7 @@ def _write_meme_step_summary(
     if not summary_path:
         return
     topics_list = "\n".join(f"- {t}" for t in topics)
-    avoid_list = "\n".join(f"- {t}" for t in avoid_topics) or "(none)"
+    avoid_list = "\n".join(f"- {j}" for j in avoid_jokes) or "(none)"
     examples_list = "\n".join(f"- {c}" for c in example_captions) or "(none)"
     candidates_list = "\n".join(f"- {c}" for c in candidate_summaries) or "(none)"
     with open(summary_path, "a") as f:
@@ -161,7 +161,7 @@ def _write_meme_step_summary(
             f"**Candidate memes drafted today:**\n{candidates_list}\n\n"
             f"**Humour style summary:**\n{humour_style}\n\n"
             f"**Today's generated topics:**\n{topics_list}\n\n"
-            f"**Recently used topics avoided:**\n{avoid_list}\n\n"
+            f"**Recently used joke angles avoided:**\n{avoid_list}\n\n"
             f"**Top-reacted example messages used as style reference:**\n{examples_list}\n\n"
             f"**Image:** {image_url}\n"
         )

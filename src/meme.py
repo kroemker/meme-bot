@@ -14,7 +14,10 @@ JUDGE_SYSTEM_PROMPT = (
 
 
 def generate_meme(
-    topics: list[str], humour_style: str, example_captions: list[str]
+    topics: list[str],
+    humour_style: str,
+    example_captions: list[str],
+    avoid_jokes: list[str] | None = None,
 ) -> tuple[str, str, str, list[str]]:
     """Drafts one candidate meme per topic, judges them, and renders the
     winner. Returns (image_url, chosen_topic, explanation, candidate_summaries)."""
@@ -29,6 +32,7 @@ def generate_meme(
         f"{topics_list}\n\n"
         f"This group's sense of humour:\n{humour_style}\n\n"
         f"{_examples_block(example_captions)}"
+        f"{_avoid_jokes_block(avoid_jokes)}"
         "For each topic, choose the best-fitting meme template from this "
         f"list (box_count is how many text fields it has):\n{template_list}\n\n"
         "Reply with ONLY a JSON object like "
@@ -101,6 +105,18 @@ def _format_candidate(
     explanation = c.get("explanation") or ""
     marker = " (chosen)" if is_winner else ""
     return f'{i}: topic="{c.get("topic")}" [{template_name}] {texts} — {explanation}{marker}'
+
+
+def _avoid_jokes_block(avoid_jokes: list[str] | None) -> str:
+    if not avoid_jokes:
+        return ""
+    avoid_list = "\n".join(f"- {j}" for j in avoid_jokes)
+    return (
+        "These joke angles/premises were already used in recent memes — do "
+        "NOT reuse the same joke concept or punchline structure, even if "
+        "the topic overlaps or repeats. Topics recurring is completely "
+        f"fine; the actual joke must be fresh each time:\n{avoid_list}\n\n"
+    )
 
 
 def _examples_block(example_captions: list[str]) -> str:

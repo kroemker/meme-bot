@@ -15,29 +15,34 @@ a channel of its own.
    fetch for other links) are resolved to a short description — e.g. a bare
    `https://youtu.be/...` becomes `[YouTube: "title" by channel]` — so the
    LLM understands link-only posts instead of seeing an opaque URL.
-2. Scans the bot's own recent posts in the target channel for the last 10
-   topics it's already used (parsed straight out of its own past messages,
-   no separate state to maintain), then sends all of that to an LLM
-   (Anthropic or OpenAI — your choice) in one call to get both a summary of
-   the group's sense of humour and a list of 10 fresh topic ideas grounded
-   in what the group actually talks about, explicitly avoiding anything
-   close to those last 10.
+2. Sends all of that to an LLM (Anthropic or OpenAI — your choice) in one
+   call to get both a summary of the group's sense of humour and a list of
+   10 fresh topic ideas grounded in what the group actually talks about.
+   Topics are allowed to recur — a small friend group only has so many
+   genuinely distinct running themes, so repeating a topic (a game, a
+   recurring bit) from a fresh angle is fine and expected.
 3. Randomly samples 3 of those 10 topics.
-4. Asks the LLM to draft one candidate meme per sampled topic — each free to
-   pick its own best-fitting template from up to 100
+4. Scans the bot's own recent posts in the target channel for the last 10
+   joke explanations it's already used (parsed straight out of its own past
+   messages' spoiler text, no separate state to maintain), then asks the
+   LLM to draft one candidate meme per sampled topic — each free to pick
+   its own best-fitting template from up to 100
    [Imgflip](https://imgflip.com) templates (any box count, not just
    top/bottom) — using the group's most-reacted recent messages as concrete
-   style examples. Topic and template are chosen together per candidate,
-   rather than picking a topic first and fitting a template to it after.
+   style examples, and explicitly avoiding those last 10 joke angles/
+   premises even if the topic overlaps. Topic and template are chosen
+   together per candidate, rather than picking a topic first and fitting a
+   template to it after.
 5. A second LLM call judges the 3 drafts and picks the funniest, best-fitting
    one for the group.
 6. Renders the winning meme via the Imgflip API and posts it to the target
    channel, with a one-line explanation of the joke posted underneath as a
    Discord spoiler (`||like this||`) for anyone who doesn't get it.
 
-Nothing is persisted between days for topic variety — the last-10-topics
-check is derived by reading the channel's own message history each run,
-not stored anywhere separately.
+Nothing is persisted between days — the recent-jokes check is derived by
+reading the channel's own message history each run, not stored anywhere
+separately. Topics themselves are unrestricted; only the specific joke/
+punchline is required to be fresh each time.
 
 ### Weekly recap (via a second GitHub Actions cron job)
 
@@ -120,10 +125,11 @@ manually from the Actions tab via `workflow_dispatch`.
 ### Seeing what the LLM generated
 
 Each daily-meme run writes a summary — the inferred humour style, the 10
-generated topics, the last-10-topics it was told to avoid, the 3 candidate
-memes drafted (topic, template, texts, explanation, and which one won), the
-top-reacted messages used as style examples, and the resulting image URL —
-to the **Summary** panel of that Actions run (Actions tab > pick the run).
+generated topics, the last-10 joke angles it was told to avoid, the 3
+candidate memes drafted (topic, template, texts, explanation, and which one
+won), the top-reacted messages used as style examples, and the resulting
+image URL — to the **Summary** panel of that Actions run (Actions tab > pick
+the run).
 Each weekly-recap run writes the generated recap text there too. It's also
 in the raw job log if you want more detail (e.g.
 `INFO:meme_bot:Humour style summary: ...`).
